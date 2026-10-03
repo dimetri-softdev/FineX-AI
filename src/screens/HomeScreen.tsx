@@ -1,97 +1,132 @@
 // src/screens/HomeScreen.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Colors } from '../theme/colors';
 import { Card } from '../components/Card';
-import { Button } from '../components/Button';
 import { Ionicons } from '@expo/vector-icons';
+import { AddTransactionModal } from '../components/AddTransactionModal';
+import { useTransactionStore } from '../store/useTransactionStore';
 
 export const HomeScreen = () => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const { transactions, fetchTransactions, fetchBudgets } = useTransactionStore();
+
+  useEffect(() => {
+    fetchTransactions();
+    fetchBudgets();
+  }, []);
+
+  // Compute live summary figures from SQLite data
+  const totalSpent = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+  const totalIncome = 2400; // Placeholder until income streams are logged dynamically
+  const netBalance = totalIncome - totalSpent;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Welcome back</Text>
-          <Text style={styles.brand}>FineX Dashboard</Text>
-        </View>
-        <TouchableOpacity style={styles.profileIcon}>
-          <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Balance Card */}
-      <Card style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Total Balance</Text>
-        <Text style={styles.balanceAmount}>$1,627.36</Text>
-        <View style={styles.balanceRow}>
-          <View style={styles.statBox}>
-            <Ionicons name="arrow-down-circle" size={18} color={Colors.income} />
-            <Text style={styles.statText}>Income: $2,400</Text>
+    <View style={styles.flexContainer}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Welcome back</Text>
+            <Text style={styles.brand}>FineX Dashboard</Text>
           </View>
-          <View style={styles.statBox}>
-            <Ionicons name="arrow-up-circle" size={18} color={Colors.expense} />
-            <Text style={styles.statText}>Spent: $772.64</Text>
-          </View>
-        </View>
-      </Card>
-
-      {/* Quick Action Buttons */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.primary }]}>
-          <Ionicons name="camera" size={22} color="#000" />
-          <Text style={styles.actionBtnTextDark}>Scan Receipt</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.surfaceLight }]}>
-          <Ionicons name="add-circle-outline" size={22} color={Colors.secondary} />
-          <Text style={styles.actionBtnTextLight}>Add Expense</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Spending Preview Box */}
-      <Card style={styles.chartCard}>
-        <Text style={styles.cardTitle}>Monthly Spending Trend</Text>
-        <View style={styles.chartPlaceholder}>
-          <Ionicons name="analytics" size={48} color={Colors.secondary} />
-          <Text style={styles.placeholderText}>Spending Chart View</Text>
-        </View>
-      </Card>
-
-      {/* Recent Transactions List */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recent Transactions</Text>
-      </View>
-
-      <Card style={styles.txCard}>
-        <View style={styles.txItem}>
-          <View style={styles.txIconBox}>
-            <Ionicons name="cart" size={20} color={Colors.secondary} />
-          </View>
-          <View style={styles.txInfo}>
-            <Text style={styles.txTitle}>Groceries</Text>
-            <Text style={styles.txDate}>Today, 2:30 PM</Text>
-          </View>
-          <Text style={[styles.txAmount, { color: Colors.expense }]}>-$200.00</Text>
+          <TouchableOpacity style={styles.profileIcon}>
+            <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.divider} />
+        {/* Dynamic Balance Card */}
+        <Card style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>Total Balance</Text>
+          <Text style={styles.balanceAmount}>${netBalance.toFixed(2)}</Text>
+          <View style={styles.balanceRow}>
+            <View style={styles.statBox}>
+              <Ionicons name="arrow-down-circle" size={18} color={Colors.income} />
+              <Text style={styles.statText}>Income: ${totalIncome.toFixed(2)}</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Ionicons name="arrow-up-circle" size={18} color={Colors.expense} />
+              <Text style={styles.statText}>Spent: ${totalSpent.toFixed(2)}</Text>
+            </View>
+          </View>
+        </Card>
 
-        <View style={styles.txItem}>
-          <View style={styles.txIconBox}>
-            <Ionicons name="flash" size={20} color={Colors.secondary} />
-          </View>
-          <View style={styles.txInfo}>
-            <Text style={styles.txTitle}>Utilities</Text>
-            <Text style={styles.txDate}>Yesterday</Text>
-          </View>
-          <Text style={[styles.txAmount, { color: Colors.expense }]}>-$95.00</Text>
+        {/* Action Buttons */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.primary }]}>
+            <Ionicons name="camera" size={22} color="#000" />
+            <Text style={styles.actionBtnTextDark}>Scan Receipt</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.actionBtn, { backgroundColor: Colors.surfaceLight }]}
+            onPress={() => setModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add-circle-outline" size={22} color={Colors.secondary} />
+            <Text style={styles.actionBtnTextLight}>Add Expense</Text>
+          </TouchableOpacity>
         </View>
-      </Card>
-    </ScrollView>
+
+        {/* Spending Trend Placeholder */}
+        <Card style={styles.chartCard}>
+          <Text style={styles.cardTitle}>Monthly Spending Trend</Text>
+          <View style={styles.chartPlaceholder}>
+            <Ionicons name="analytics" size={48} color={Colors.secondary} />
+            <Text style={styles.placeholderText}>
+              {transactions.length} expense record(s) logged in SQLite
+            </Text>
+          </View>
+        </Card>
+
+        {/* Live Recent Transactions Feed */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recent Transactions</Text>
+        </View>
+
+        <Card style={styles.txCard}>
+          {transactions.length === 0 ? (
+            <Text style={styles.emptyText}>No transactions logged yet.</Text>
+          ) : (
+            transactions.slice(0, 5).map((tx, idx) => (
+              <React.Fragment key={tx.id}>
+                <View style={styles.txItem}>
+                  <View style={[styles.txIconBox, { backgroundColor: tx.category_color ? `${tx.category_color}22` : Colors.surfaceLight }]}>
+                    <Ionicons 
+                      name={(tx.category_icon as any) || 'pricetag'} 
+                      size={20} 
+                      color={tx.category_color || Colors.secondary} 
+                    />
+                  </View>
+                  <View style={styles.txInfo}>
+                    <Text style={styles.txTitle}>{tx.note || tx.category_name || 'Expense'}</Text>
+                    <Text style={styles.txSubtext}>
+                      {tx.category_name ? `${tx.category_name} • ` : ''}
+                      {new Date(tx.date).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <Text style={[styles.txAmount, { color: Colors.expense }]}>
+                    -${tx.amount.toFixed(2)}
+                  </Text>
+                </View>
+                {idx < Math.min(transactions.length, 5) - 1 && <View style={styles.divider} />}
+              </React.Fragment>
+            ))
+          )}
+        </Card>
+      </ScrollView>
+
+      {/* Add Transaction Modal */}
+      <AddTransactionModal 
+        visible={modalVisible} 
+        onClose={() => setModalVisible(false)} 
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  flexContainer: { flex: 1 },
   container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 20, paddingTop: 50 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
@@ -116,10 +151,11 @@ const styles = StyleSheet.create({
   sectionTitle: { color: Colors.textPrimary, fontSize: 18, fontWeight: 'bold' },
   txCard: { padding: 12 },
   txItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  txIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  txIconBox: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   txInfo: { flex: 1 },
   txTitle: { color: Colors.textPrimary, fontSize: 16, fontWeight: '600' },
-  txDate: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  txSubtext: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
   txAmount: { fontSize: 16, fontWeight: 'bold' },
+  emptyText: { color: Colors.textSecondary, textAlign: 'center', paddingVertical: 16 },
   divider: { height: 1, backgroundColor: Colors.border, marginVertical: 4 },
 });

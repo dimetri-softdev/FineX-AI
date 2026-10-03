@@ -1,7 +1,6 @@
-// src/db/schema.ts
 import * as SQLite from 'expo-sqlite';
 
-// Open or create local database
+// Initialize and export the SQLite database connection
 export const db = SQLite.openDatabaseSync('finex.db');
 
 export const initDatabase = () => {
@@ -36,7 +35,6 @@ export const initDatabase = () => {
       FOREIGN KEY (category_id) REFERENCES categories (id)
     );
   `);
-
   seedDefaultCategories();
 };
 

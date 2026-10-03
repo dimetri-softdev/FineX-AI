@@ -1,71 +1,95 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+// src/screens/InsightsScreen.tsx
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, ScrollView } from 'react-native';
 import { Colors } from '../theme/colors';
 import { Card } from '../components/Card';
 import { Ionicons } from '@expo/vector-icons';
+import { useTransactionStore, CategorySpendingBreakdown } from '../store/useTransactionStore';
 
 export const InsightsScreen = () => {
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Spending Insights</Text>
-        <Text style={styles.subtitle}>Analytics & category breakdown</Text>
+  const { spendingBreakdown, fetchSpendingBreakdown, transactions } = useTransactionStore();
+
+  useEffect(() => {
+    fetchSpendingBreakdown();
+  }, [transactions]);
+
+  const totalSpent = spendingBreakdown.reduce((acc, curr) => acc + curr.total_spent, 0);
+
+  const renderCategoryBar = (item: CategorySpendingBreakdown) => (
+    <Card key={item.category_id} style={styles.breakdownCard}>
+      <View style={styles.rowHeader}>
+        <View style={styles.iconRow}>
+          <View style={[styles.iconBox, { backgroundColor: item.category_color }]}>
+            <Ionicons name={(item.category_icon as any) || 'pricetag'} size={18} color="#000" />
+          </View>
+          <Text style={styles.categoryName}>{item.category_name}</Text>
+        </View>
+        <Text style={styles.amountText}>${item.total_spent.toFixed(2)}</Text>
       </View>
 
-      {/* Doughnut Chart Mock View */}
-      <Card style={styles.chartCard}>
-        <Text style={styles.cardTitle}>Category Breakdown</Text>
-        <View style={styles.chartContainer}>
-          <View style={styles.donutPlaceholder}>
-            <Ionicons name="pie-chart" size={64} color={Colors.secondary} />
-          </View>
-          <View style={styles.legendContainer}>
-            <View style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: Colors.primary }]} />
-              <Text style={styles.legendText}>Groceries (37%)</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: Colors.secondary }]} />
-              <Text style={styles.legendText}>Utilities (28%)</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: Colors.income }]} />
-              <Text style={styles.legendText}>Dining Out (15%)</Text>
-            </View>
-          </View>
-        </View>
+      <View style={styles.track}>
+        <View
+          style={[
+            styles.fill,
+            {
+              width: `${Math.min(item.percentage, 100)}%`,
+              backgroundColor: item.category_color || Colors.primary,
+            },
+          ]}
+        />
+      </View>
+
+      <Text style={styles.percentageText}>{item.percentage.toFixed(1)}% of total spending</Text>
+    </Card>
+  );
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.headerTitle}>Spending Insights</Text>
+
+      {/* Summary Banner */}
+      <Card style={styles.summaryCard}>
+        <Text style={styles.summaryLabel}>Total Outflow</Text>
+        <Text style={styles.summaryAmount}>${totalSpent.toFixed(2)}</Text>
+        <Text style={styles.summarySub}>
+          Across {spendingBreakdown.length} active spending categories
+        </Text>
       </Card>
 
-      {/* Cash Flow Bar Chart Mock View */}
-      <Card style={styles.chartCard}>
-        <Text style={styles.cardTitle}>Monthly Cash Flow</Text>
-        <View style={styles.barChartPlaceholder}>
-          <View style={[styles.bar, { height: '60%', backgroundColor: Colors.income }]} />
-          <View style={[styles.bar, { height: '80%', backgroundColor: Colors.primary }]} />
-          <View style={[styles.bar, { height: '45%', backgroundColor: Colors.income }]} />
-          <View style={[styles.bar, { height: '90%', backgroundColor: Colors.secondary }]} />
-        </View>
-        <Text style={styles.chartHint}>Income vs. Expense ratio over 4 months</Text>
-      </Card>
+      <Text style={styles.sectionTitle}>Category Breakdown</Text>
+
+      {spendingBreakdown.length === 0 ? (
+        <Card style={styles.emptyCard}>
+          <Ionicons name="pie-chart-outline" size={48} color={Colors.textSecondary} />
+          <Text style={styles.emptyText}>No spending analytics available yet.</Text>
+          <Text style={styles.emptySub}>Log expenses to generate category insights.</Text>
+        </Card>
+      ) : (
+        spendingBreakdown.map(renderCategoryBar)
+      )}
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 20, paddingTop: 50 },
-  header: { marginBottom: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', color: Colors.textPrimary },
-  subtitle: { fontSize: 13, color: Colors.textSecondary, marginTop: 4 },
-  chartCard: { marginBottom: 20, padding: 16 },
-  cardTitle: { fontSize: 16, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 16 },
-  chartContainer: { alignItems: 'center', gap: 16 },
-  donutPlaceholder: { width: 120, height: 120, borderRadius: 60, backgroundColor: Colors.surfaceLight, justifyContent: 'center', alignItems: 'center' },
-  legendContainer: { width: '100%', gap: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dot: { width: 12, height: 12, borderRadius: 6 },
-  legendText: { color: Colors.textPrimary, fontSize: 14 },
-  barChartPlaceholder: { height: 120, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', paddingBottom: 10 },
-  bar: { width: 24, borderRadius: 4 },
-  chartHint: { textAlign: 'center', color: Colors.textSecondary, fontSize: 12, marginTop: 10 },
+  content: { padding: 20, paddingTop: 50, paddingBottom: 30, gap: 16 },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: Colors.textPrimary },
+  summaryCard: { padding: 20, backgroundColor: Colors.surface },
+  summaryLabel: { color: Colors.textSecondary, fontSize: 13 },
+  summaryAmount: { color: Colors.expense, fontSize: 32, fontWeight: 'bold', marginVertical: 6 },
+  summarySub: { color: Colors.textSecondary, fontSize: 12 },
+  sectionTitle: { color: Colors.textPrimary, fontSize: 18, fontWeight: 'bold', marginTop: 8 },
+  breakdownCard: { padding: 14, gap: 10 },
+  rowHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  iconRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconBox: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
+  categoryName: { color: Colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  amountText: { color: Colors.textPrimary, fontSize: 15, fontWeight: 'bold' },
+  track: { height: 8, backgroundColor: Colors.surfaceLight, borderRadius: 4, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 4 },
+  percentageText: { color: Colors.textSecondary, fontSize: 11, textAlign: 'right' },
+  emptyCard: { padding: 30, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  emptyText: { color: Colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  emptySub: { color: Colors.textSecondary, fontSize: 12 },
 });

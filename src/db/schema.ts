@@ -28,6 +28,7 @@ export const initDatabase = () => {
       receipt_url TEXT,
       sync_status TEXT CHECK(sync_status IN ('pending', 'synced')) DEFAULT 'pending',
       updated_at TEXT NOT NULL,
+      deleted_at TEXT,
       FOREIGN KEY (category_id) REFERENCES categories (id)
     );
 
@@ -49,21 +50,20 @@ export const initDatabase = () => {
 };
 
 const runMigrations = () => {
-  try {
-    const tableInfo = db.getAllSync<{ name: string }>('PRAGMA table_info(transactions);');
-    const columnNames = tableInfo.map((col) => col.name);
+  const tableInfo = db.getAllSync<{ name: string }>('PRAGMA table_info(transactions);');
+  const columnNames = tableInfo.map((col) => col.name);
 
-    if (!columnNames.includes('user_id')) {
-      db.execSync('ALTER TABLE transactions ADD COLUMN user_id TEXT;');
-    }
-    if (!columnNames.includes('type')) {
-      db.execSync("ALTER TABLE transactions ADD COLUMN type TEXT CHECK(type IN ('expense', 'income')) NOT NULL DEFAULT 'expense';");
-    }
-    if (!columnNames.includes('title')) {
-      db.execSync("ALTER TABLE transactions ADD COLUMN title TEXT NOT NULL DEFAULT 'Transaction';");
-    }
-  } catch (error) {
-    console.error('Failed to run schema migrations:', error);
+  if (!columnNames.includes('user_id')) {
+    db.execSync('ALTER TABLE transactions ADD COLUMN user_id TEXT;');
+  }
+  if (!columnNames.includes('type')) {
+    db.execSync("ALTER TABLE transactions ADD COLUMN type TEXT CHECK(type IN ('expense', 'income')) NOT NULL DEFAULT 'expense';");
+  }
+  if (!columnNames.includes('title')) {
+    db.execSync("ALTER TABLE transactions ADD COLUMN title TEXT NOT NULL DEFAULT 'Transaction';");
+  }
+  if (!columnNames.includes('deleted_at')) {
+    db.execSync('ALTER TABLE transactions ADD COLUMN deleted_at TEXT;');
   }
 };
 

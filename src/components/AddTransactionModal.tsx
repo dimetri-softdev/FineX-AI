@@ -8,15 +8,20 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ScrollView,
 } from "react-native";
 import { Colors } from "../theme/colors";
-import { useTransactionStore } from "../store/useTransactionStore";
+import {
+  useTransactionStore,
+  type Category,
+} from "../store/useTransactionStore";
 
 export interface PreFilledTransactionData {
   amount: number | null;
   note: string | null;
   categoryId: string | null;
   date?: string | null;
+  type?: "income" | "expense";
 }
 
 interface AddTransactionModalProps {
@@ -30,30 +35,65 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   onClose,
   initialData,
 }) => {
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [date, setDate] = useState<string>(new Date().toISOString());
-
-  const { addTransaction } = useTransactionStore();
-
-  // Populate or reset form fields whenever modal visibility or initialData changes
+  const categories = useTransactionStore((state) => state.categories);
+  const fetchCategories = useTransactionStore((state) => state.fetchCategories);
   useEffect(() => {
-    if (visible) {
-      if (initialData) {
-        setAmount(initialData.amount ? initialData.amount.toString() : "");
-        setNote(initialData.note || "");
-        setSelectedCategory(initialData.categoryId || "");
-        setDate(initialData.date || new Date().toISOString());
-      } else {
-        // Reset form for manual entry
-        setAmount("");
-        setNote("");
-        setSelectedCategory("");
-        setDate(new Date().toISOString());
-      }
+    fetchCategories();
+  }, [fetchCategories]);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      {visible ? (
+        <TransactionForm
+          categories={categories}
+          initialData={initialData}
+          onClose={onClose}
+        />
+      ) : null}
+    </Modal>
+  );
+};
+
+interface TransactionFormProps {
+  categories: Category[];
+  initialData?: PreFilledTransactionData | null;
+  onClose: () => void;
+}
+
+const TransactionForm: React.FC<TransactionFormProps> = ({
+  categories,
+  initialData,
+  onClose,
+}) => {
+  const type = initialData?.type || "expense";
+  const availableCategories = categories.filter(
+    (category) => category.type === type,
+  );
+  const [amount, setAmount] = useState(
+    initialData?.amount != null ? initialData.amount.toString() : "",
+  );
+  const [note, setNote] = useState(initialData?.note || "");
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    if (
+      initialData?.categoryId &&
+      availableCategories.some(
+        (category) => category.id === initialData.categoryId,
+      )
+    ) {
+      return initialData.categoryId;
     }
-  }, [visible, initialData]);
+    return availableCategories[0]?.id || "";
+  });
+  const date = initialData?.date || new Date().toISOString();
+  const [transactionType, setTransactionType] = useState(type);
+  const addTransaction = useTransactionStore((state) => state.addTransaction);
+
+  const handleTypeChange = (nextType: "income" | "expense") => {
+    setTransactionType(nextType);
+    setSelectedCategory(
+      categories.find((category) => category.type === nextType)?.id || "",
+    );
+  };
 
   const handleSave = async () => {
     const numericAmount = parseFloat(amount);
@@ -61,10 +101,16 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       Alert.alert("Invalid Amount", "Please enter a valid expense amount.");
       return;
     }
+    if (!selectedCategory) {
+      Alert.alert("Category required", "Please select a transaction category.");
+      return;
+    }
 
     try {
       await addTransaction({
         amount: numericAmount,
+        type: transactionType,
+        title: transactionType === "income" ? "Income" : "Expense",
         category_id: selectedCategory,
         note,
         date,
@@ -77,12 +123,35 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
+    <View style={styles.overlay}>
         <View style={styles.modalContent}>
           <Text style={styles.title}>
-            {initialData ? "Verify Scanned Expense" : "Add Expense"}
+            {initialData ? "Verify Scanned Transaction" : "Add Transaction"}
           </Text>
+
+          <View style={styles.typeRow}>
+            {(["expense", "income"] as const).map((optionType) => (
+              <TouchableOpacity
+                key={optionType}
+                style={[
+                  styles.typeButton,
+                  transactionType === optionType &&
+                    styles.selectedTypeButton,
+                ]}
+                onPress={() => handleTypeChange(optionType)}
+              >
+                <Text
+                  style={[
+                    styles.typeButtonText,
+                    transactionType === optionType &&
+                      styles.selectedTypeButtonText,
+                  ]}
+                >
+                  {optionType === "expense" ? "Expense" : "Income"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           <Text style={styles.label}>Amount ($)</Text>
           <TextInput
@@ -103,17 +172,49 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             onChangeText={setNote}
           />
 
+          <Text style={styles.label}>Category</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryRow}
+          >
+            {categories
+              .filter((category) => category.type === transactionType)
+              .map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.categoryChip,
+                    selectedCategory === category.id &&
+                      styles.selectedCategoryChip,
+                  ]}
+                  onPress={() => setSelectedCategory(category.id)}
+                >
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      selectedCategory === category.id &&
+                        styles.selectedCategoryText,
+                    ]}
+                  >
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+          </ScrollView>
+
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-              <Text style={styles.saveBtnText}>Save Expense</Text>
+              <Text style={styles.saveBtnText}>
+                Save {transactionType === "income" ? "Income" : "Expense"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-    </Modal>
+    </View>
   );
 };
 
@@ -130,6 +231,17 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 12,
   },
+  typeRow: { flexDirection: "row", gap: 8, marginBottom: 4 },
+  typeButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+  },
+  selectedTypeButton: { backgroundColor: Colors.primary },
+  typeButtonText: { color: Colors.textSecondary, fontWeight: "600" },
+  selectedTypeButtonText: { color: "#000000" },
   title: {
     fontSize: 20,
     fontWeight: "bold",
@@ -146,6 +258,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  categoryRow: { gap: 8, paddingVertical: 2 },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: Colors.background,
+  },
+  selectedCategoryChip: { backgroundColor: Colors.primary },
+  categoryText: { color: Colors.textSecondary, fontSize: 13 },
+  selectedCategoryText: { color: "#000000", fontWeight: "600" },
   buttonRow: {
     flexDirection: "row",
     gap: 12,

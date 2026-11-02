@@ -21,11 +21,10 @@ export const TransactionsScreen = () => {
   const { transactions, fetchTransactions, deleteTransaction } =
     useTransactionStore();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [fetchTransactions]);
 
   // Filter list by search text and selected category
   const filteredTransactions = useMemo(() => {
@@ -34,12 +33,9 @@ export const TransactionsScreen = () => {
         tx.note.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (tx.category_name &&
           tx.category_name.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesCategory = selectedCategory
-        ? tx.category_id === selectedCategory
-        : true;
-      return matchesSearch && matchesCategory;
+      return matchesSearch;
     });
-  }, [transactions, searchQuery, selectedCategory]);
+  }, [transactions, searchQuery]);
 
   const handleDelete = (id: string, note: string) => {
     Alert.alert(
@@ -81,7 +77,14 @@ export const TransactionsScreen = () => {
         </View>
 
         <View style={styles.rightContainer}>
-          <Text style={styles.txAmount}>-${item.amount.toFixed(2)}</Text>
+          <Text
+            style={[
+              styles.txAmount,
+              { color: item.type === "income" ? Colors.income : Colors.expense },
+            ]}
+          >
+            {item.type === "income" ? "+" : "-"}${item.amount.toFixed(2)}
+          </Text>
           <TouchableOpacity
             onPress={() => handleDelete(item.id, item.note)}
             hitSlop={10}

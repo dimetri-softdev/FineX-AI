@@ -7,7 +7,7 @@ interface AuthState {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  initializeAuth: () => void;
+  initializeAuth: () => () => void;
   signUp: (email: string, pass: string) => Promise<{ error: any }>;
   signIn: (email: string, pass: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -19,22 +19,36 @@ export const useAuthStore = create<AuthState>((set) => ({
   loading: true,
 
   initializeAuth: () => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       set({ session, user: session?.user ?? null, loading: false });
     });
 
-    supabase.auth.onAuthStateChange((_event, session) => {
-      set({ session, user: session?.user ?? null, loading: false });
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session }, error }) => {
+        if (error) throw error;
+        set({ session, user: session?.user ?? null, loading: false });
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to restore the authentication session:', error);
+        set({ loading: false });
+      });
+
+    return () => subscription.unsubscribe();
   },
 
   signUp: async (email, password) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({ email, password });
     return { error };
   },
 
   signIn: async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     return { error };
   },
 

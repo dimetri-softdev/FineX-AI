@@ -1,5 +1,5 @@
 // src/components/CategoryBreakdownCard.tsx
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import Svg, { G, Circle } from "react-native-svg";
 import { Colors } from "../theme/colors";
@@ -13,6 +13,15 @@ import { Ionicons } from "@expo/vector-icons";
 const RADIUS = 50;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ~314.16
 
+const getChartSegments = (items: CategorySpendingBreakdown[]) => {
+  let accumulatedPercent = 0;
+  return items.map((item) => {
+    const offset = accumulatedPercent;
+    accumulatedPercent += item.percentage;
+    return { item, offset };
+  });
+};
+
 export const CategoryBreakdownCard = () => {
   const { spendingBreakdown } = useTransactionStore();
   const [selectedCategory, setSelectedCategory] =
@@ -21,6 +30,10 @@ export const CategoryBreakdownCard = () => {
   const grandTotal = spendingBreakdown.reduce(
     (sum, item) => sum + item.total_spent,
     0,
+  );
+  const chartSegments = useMemo(
+    () => getChartSegments(spendingBreakdown),
+    [spendingBreakdown],
   );
 
   if (spendingBreakdown.length === 0 || grandTotal === 0) {
@@ -39,9 +52,10 @@ export const CategoryBreakdownCard = () => {
     );
   }
 
-  // Active highlighted category or defaults to largest category
-  const activeItem = selectedCategory || spendingBreakdown[0];
-  let accumulatedPercent = 0;
+  const activeItem =
+    spendingBreakdown.find(
+      (item) => item.category_id === selectedCategory?.category_id,
+    ) || spendingBreakdown[0];
 
   return (
     <Card style={styles.card}>
@@ -52,14 +66,11 @@ export const CategoryBreakdownCard = () => {
         <View style={styles.donutWrapper}>
           <Svg width={140} height={140} viewBox="0 0 120 120">
             <G rotation="-90" origin="60, 60">
-              {spendingBreakdown.map((item) => {
+              {chartSegments.map(({ item, offset }) => {
                 const strokeDasharray = `${
                   (item.percentage / 100) * CIRCUMFERENCE
                 } ${CIRCUMFERENCE}`;
-                const strokeDashoffset =
-                  -(accumulatedPercent / 100) * CIRCUMFERENCE;
-
-                accumulatedPercent += item.percentage;
+                const strokeDashoffset = -(offset / 100) * CIRCUMFERENCE;
                 const isSelected = activeItem?.category_id === item.category_id;
 
                 return (

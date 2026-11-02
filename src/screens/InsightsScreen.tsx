@@ -1,6 +1,6 @@
 // src/screens/InsightsScreen.tsx
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Colors } from '../theme/colors';
 import { Card } from '../components/Card';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,7 @@ export const InsightsScreen = () => {
 
   useEffect(() => {
     fetchSpendingBreakdown();
-  }, [transactions]);
+  }, [fetchSpendingBreakdown, transactions]);
 
   const totalSpent = spendingBreakdown.reduce((acc, curr) => acc + curr.total_spent, 0);
 

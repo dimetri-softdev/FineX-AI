@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Text, StyleSheet, ScrollView } from 'react-native';
 import { Colors } from '../theme/colors';
 import { Card } from '../components/Card';
 
@@ -8,8 +8,8 @@ export const GuideScreen = () => (
     <Text style={styles.title}>Getting Started Guide</Text>
     
     <Card style={styles.stepCard}>
-      <Text style={styles.stepTitle}>1. Offline-First Entry</Text>
-      <Text style={styles.stepBody}>Log expenses or income anywhere. Data saves instantly to device storage.</Text>
+      <Text style={styles.stepTitle}>1. Offline Transaction Entry</Text>
+      <Text style={styles.stepBody}>Log expenses or income offline. Transactions are saved on this device.</Text>
     </Card>
 
     <Card style={styles.stepCard}>
@@ -18,8 +18,8 @@ export const GuideScreen = () => (
     </Card>
 
     <Card style={styles.stepCard}>
-      <Text style={styles.stepTitle}>3. Background Sync</Text>
-      <Text style={styles.stepBody}>Once connected, pending transactions sync automatically with the backend.</Text>
+      <Text style={styles.stepTitle}>3. Transaction Sync</Text>
+      <Text style={styles.stepBody}>FineX tries to sync after you save a transaction. You can retry pending changes from Profile &amp; Settings.</Text>
     </Card>
   </ScrollView>
 );

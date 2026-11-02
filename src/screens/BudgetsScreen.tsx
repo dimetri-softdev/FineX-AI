@@ -27,7 +27,7 @@ export const BudgetsScreen = () => {
 
   useEffect(() => {
     fetchBudgets();
-  }, []);
+  }, [fetchBudgets]);
 
   const handleSaveLimit = () => {
     if (!selectedBudget) return;
@@ -79,7 +79,7 @@ export const BudgetsScreen = () => {
             <View>
               <Text style={styles.categoryName}>{item.category_name}</Text>
               <Text style={styles.budgetMeta}>
-                Spent: ${item.total_spent.toFixed(2)} /$
+                This month: ${item.total_spent.toFixed(2)} /$
                 {item.amount_limit.toFixed(2)}
               </Text>
             </View>
@@ -137,7 +137,7 @@ export const BudgetsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Category Budgets</Text>
+      <Text style={styles.headerTitle}>Monthly Category Budgets</Text>
 
       <FlatList
         data={budgets}

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Alert,
   ActivityIndicator,
 } from "react-native";
@@ -22,7 +21,6 @@ interface ProfileScreenProps {
 }
 
 export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
-  const [biometricsEnabled, setBiometricsEnabled] = useState(true);
   const { user, signOut } = useAuthStore();
   const { pendingCount, isSyncing, syncData, getPendingCount } = useSyncStore();
 
@@ -30,7 +28,7 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     if (user) {
       getPendingCount();
     }
-  }, [user]);
+  }, [getPendingCount, user]);
 
   if (!user) {
     return <AuthScreen />;
@@ -68,7 +66,7 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
           <Text style={styles.userName} numberOfLines={1}>
             {user.email}
           </Text>
-          <Text style={styles.userStatus}>Supabase Sync Active</Text>
+          <Text style={styles.userStatus}>Transaction sync enabled</Text>
         </View>
       </Card>
 
@@ -80,12 +78,9 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
             <Ionicons name="finger-print" size={20} color={Colors.primary} />
             <Text style={styles.settingLabel}>Biometric Lock</Text>
           </View>
-          <Switch
-            value={biometricsEnabled}
-            onValueChange={setBiometricsEnabled}
-            thumbColor={Colors.primary}
-            trackColor={{ false: Colors.surfaceLight, true: Colors.border }}
-          />
+          <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>
+            Not available yet
+          </Text>
         </View>
 
         <View style={styles.divider} />

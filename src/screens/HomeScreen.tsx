@@ -28,15 +28,15 @@ import { AddTransactionModal } from "../components/AddTransactionModal";
 import { useTransactionStore } from "../store/useTransactionStore";
 import * as ImagePicker from "expo-image-picker";
 import { parseReceiptImage } from "../services/receiptOcrService";
+import {
+  getMonthlySpending,
+  summarizeTransactions,
+  type MonthlySpendingPoint,
+} from "../lib/finance";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const CHART_WIDTH = SCREEN_WIDTH - 72; // Padding accounting
 const CHART_HEIGHT = 150;
-
-interface MonthlyPoint {
-  label: string; // e.g. 'May'
-  total: number;
-}
 
 export const HomeScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -51,39 +51,18 @@ export const HomeScreen = () => {
   useEffect(() => {
     fetchTransactions();
     fetchBudgets();
-  }, []);
+  }, [fetchTransactions, fetchBudgets]);
 
-  // Compute live summary figures from SQLite data
-  const totalSpent = transactions.reduce((sum, tx) => sum + tx.amount, 0);
-  const totalIncome = 2400; // Placeholder until income streams are logged
+  const { income: totalIncome, expenses: totalSpent } = useMemo(
+    () => summarizeTransactions(transactions),
+    [transactions],
+  );
   const netBalance = totalIncome - totalSpent;
 
-  // Aggregate expenses across the last 6 months
-  const chartData: MonthlyPoint[] = useMemo(() => {
-    const months: MonthlyPoint[] = [];
-    const now = new Date();
-
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const label = d.toLocaleString("default", { month: "short" });
-      const year = d.getFullYear();
-      const monthIndex = d.getMonth();
-
-      const monthlyTotal = transactions.reduce((acc, tx) => {
-        const txDate = new Date(tx.date);
-        if (
-          txDate.getFullYear() === year &&
-          txDate.getMonth() === monthIndex
-        ) {
-          return acc + tx.amount;
-        }
-        return acc;
-      }, 0);
-
-      months.push({ label, total: monthlyTotal });
-    }
-    return months;
-  }, [transactions]);
+  const chartData: MonthlySpendingPoint[] = useMemo(
+    () => getMonthlySpending(transactions, new Date()),
+    [transactions],
+  );
 
   // Compute smooth bezier points and coordinates for chart rendering
   const maxTotal = useMemo(() => {
@@ -245,7 +224,7 @@ export const HomeScreen = () => {
               size={22}
               color={Colors.secondary}
             />
-            <Text style={styles.actionBtnTextLight}>Add Expense</Text>
+            <Text style={styles.actionBtnTextLight}>Add Transaction</Text>
           </TouchableOpacity>
         </View>
 
@@ -394,8 +373,17 @@ export const HomeScreen = () => {
                       {new Date(tx.date).toLocaleDateString()}
                     </Text>
                   </View>
-                  <Text style={[styles.txAmount, { color: Colors.expense }]}>
-                    -${tx.amount.toFixed(2)}
+                  <Text
+                    style={[
+                      styles.txAmount,
+                      {
+                        color:
+                          tx.type === "income" ? Colors.income : Colors.expense,
+                      },
+                    ]}
+                  >
+                    {tx.type === "income" ? "+" : "-"}$
+                    {tx.amount.toFixed(2)}
                   </Text>
                 </View>
                 {idx < Math.min(transactions.length, 5) - 1 && (

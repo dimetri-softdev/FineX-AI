@@ -43,8 +43,8 @@ export const AuthScreen = () => {
       </Text>
       <Text style={styles.subtitle}>
         {isSignUp
-          ? "Sign up to sync your budgets to the cloud"
-          : "Sign in to access your cloud account"}
+          ? "Create an account to sync your transactions across devices"
+          : "Sign in to sync your transactions"}
       </Text>
 
       <TextInput

@@ -1,115 +1,85 @@
-# FineX — Personal Finance Companion
+# FineX
 
-FineX is an offline-first, cross-platform mobile application designed to help users track expenses, manage budgets, scan receipt data automatically, and gain real-time spending insights—all synced seamlessly across devices.
+FineX is an Expo and React Native personal-finance app for recording income and
+expenses, viewing spending summaries, setting monthly category budgets, and
+capturing receipt details with a Supabase Edge Function.
 
----
+## Features
 
-## Key Features
+- Local transaction storage with SQLite.
+- Income and expense entry, with totals based on recorded transactions.
+- Monthly expense budgets and category spending analytics.
+- Supabase authentication and per-account transaction sync.
+- Soft-deleted transactions sync as tombstones so deletions are not restored
+  during a later download.
+- Receipt OCR through the `receipt-ocr` Supabase Edge Function.
 
-- **Offline-First Architecture**: Log transactions and update budgets anytime, anywhere. Local data syncs seamlessly with the cloud when connection is restored.
-- **Smart Receipt Scanning (OCR)**: Snap a picture of receipts to automatically extract amounts, transaction dates, and merchant information using on-device text recognition.
-- **Visual Analytics & Insights**: Interactive charts present spending patterns, category trends, and budget health at a glance.
-- **Budget Tracking & Alerts**: Set custom category spending limits and receive automated notifications when approaching budget thresholds.
-- **Multi-Device Synchronization**: Effortless background sync with conflict resolution keeps data consistent across mobile clients.
-- **Data Privacy & Security**: Support for local biometric locking (Face ID / Fingerprint) and secure encrypted token storage.
+Budgets are currently stored on the device and are not synced. Biometric app
+locking and spending notifications are not implemented. Transactions entered
+while signed out stay local to the device and are not automatically attached
+to an account after sign-in.
 
----
+## Setup
 
-## Tech Stack & Dependencies
+### Requirements
 
-| Component | Technology |
-| :--- | :--- |
-| **Framework** | React Native (Expo) / Flutter |
-| **Local Database** | WatermelonDB / SQLite (OP-SQLite) |
-| **State Management** | Zustand & TanStack Query / Riverpod |
-| **Receipt Scanning** | Vision Camera + ML Kit Text Recognition |
-| **Data Visualization** | Victory Native / `fl_chart` |
-| **Backend & Sync** | Node.js / FastAPI / Supabase |
+- Node.js 18 or newer
+- npm
+- Expo Go or an Android/iOS development build
 
----
+### Install and configure
 
-## Architecture Overview
+1. Install dependencies:
 
-FineX follows a decoupled multi-layer architecture to guarantee offline reliability and high UI performance:
+   ```sh
+   npm install
+   ```
 
-┌─────────────────────────────────────────────────────────┐
-│                    Presentation Layer                   │
-│             (Screens, Components, Charts)               │
-└────────────────────────────┬────────────────────────────┘
-│
-┌────────────────────────────▼────────────────────────────┐
-│                  State Management Layer                 │
-│         (Client Application State & Async Cache)        │
-└───────────────┬─────────────────────────┬───────────────┘
-│                         │
-┌───────────────▼──────────────┐   ┌──────▼───────────────┐
-│     Local Persistent DB      │   │   Sync & API Layer   │
-│   (Offline Read/Write Ops)   │   │ (Queue & Endpoints)  │
-└──────────────────────────────┘   └──────────────────────┘
+2. Copy `.env.example` to `.env` and set your Supabase project URL and anon key:
 
----
+   ```env
+   EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+   ```
 
-## Getting Started
+3. Link the Supabase CLI and apply the database migration. The existing
+   `transactions` table must be present in the project:
 
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v18 or higher)
-- [React Native CLI / Expo CLI](https://docs.expo.dev/) or [Flutter SDK](https://docs.flutter.dev/)
-- [Android Studio](https://developer.android.com/studio) / [Xcode](https://developer.apple.com/xcode/) (for device emulation)
-
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone [https://github.com/your-username/finex-mobile.git](https://github.com/your-username/finex-mobile.git)
-   cd finex-mobile
-
-   Install client dependencies:
-
-Bash
-npm install
-# or
-yarn install
-Configure Environment Variables:
-Create a .env file in the root directory and add your API endpoints and keys:
-
-Code snippet
-API_BASE_URL=[https://api.finex.example.com](https://api.finex.example.com)
-OCR_ENABLED=true
-Run the application:
-
-Bash
-# For iOS
-npm run ios
-
-# For Android
-npm run android
-
-Database Schema Highlights
-Core entities managed locally and synced with the backend API:
-
-transactions — Stores expense and income logs (amount, category_id, date, receipt_url, sync_status).
-
-categories — Classifies transactions (name, icon, color, type).
-
-budgets — Tracks financial target limits (category_id, amount_limit, period).
-
-License
-Distributed under the MIT License. See LICENSE for more information.
-
-## Local Environment and Receipt OCR
-
-1. Copy `.env.example` to `.env` and set your Supabase project URL and anon key.
-   The `.env` file is ignored by Git.
-2. Link the Supabase CLI to your project, then set the Groq API key as a
-   server-side secret. Do not put this key in the mobile app or an
-   `EXPO_PUBLIC_` variable.
-   ```bash
+   ```sh
    supabase link --project-ref YOUR_PROJECT_ID
+   supabase db push
+   ```
+
+   The migration adds the `deleted_at` column required for synced deletions.
+
+4. Configure and deploy receipt OCR. Keep the Groq key server-side; never put
+   it in the app or an `EXPO_PUBLIC_` variable:
+
+   ```sh
    supabase secrets set GROQ_API_KEY=YOUR_GROQ_API_KEY
    supabase functions deploy receipt-ocr
    ```
-3. Sign in to the app before scanning a receipt. The Edge Function validates
-   the Supabase user token and calls Groq using the server-side secret.
 
-Revoke and replace any Groq API key that was previously committed or exposed.
+5. Start the app:
+
+   ```sh
+   npm start
+   ```
+
+## Sync behavior
+
+Transactions are uploaded for the signed-in user only. Sync compares each
+pending local transaction with the matching remote record; the version with
+the later `updated_at` timestamp wins, with ties favoring the remote record.
+Local guest transactions are isolated from signed-in accounts and are not
+uploaded automatically.
+
+## Development
+
+```sh
+npm test
+npm run lint
+npx tsc --noEmit
+```
+
+See [LICENSE](./LICENSE) for license information.

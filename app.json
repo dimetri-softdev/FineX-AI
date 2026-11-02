@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "finex-mobile",
@@ -23,7 +22,9 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-status-bar",
+      "expo-font"
     ]
   }
 }

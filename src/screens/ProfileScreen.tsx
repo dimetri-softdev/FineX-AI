@@ -103,7 +103,7 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
               size={20}
               color={
                 pendingCount > 0
-                  ? Colors.warning || "#FFB300"
+                  ? Colors.warning
                   : Colors.secondary
               }
             />
@@ -115,7 +115,7 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
             <Text
               style={[
                 styles.settingValue,
-                pendingCount > 0 && { color: Colors.warning || "#FFB300" },
+                pendingCount > 0 && { color: Colors.warning },
               ]}
             >
               {pendingCount > 0 ? `${pendingCount} Pending` : "Synced"}

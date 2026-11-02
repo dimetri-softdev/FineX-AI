@@ -7,6 +7,7 @@ export const Colors = {
   secondary: '#FFD700',     // Gold Yellow (Analytics, charts, accents)
   income: '#CFFF4F',        // Citrine Green-Gold (Positive cashflow)
   expense: '#FF1F1F',       // Lava Crimson (Errors, over-budget)
+  warning: '#FFB300',
   textPrimary: '#FFFFFF',   // Pure White
   textSecondary: '#AAAAAA', // Quartz Gray
   border: '#262626',

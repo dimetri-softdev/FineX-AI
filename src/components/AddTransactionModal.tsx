@@ -4,144 +4,113 @@ import {
   Modal,
   View,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
-  ScrollView,
+  StyleSheet,
+  Alert,
 } from "react-native";
 import { Colors } from "../theme/colors";
-import { Button } from "./Button";
 import { useTransactionStore } from "../store/useTransactionStore";
-import { db } from "../db/schema";
-import { Ionicons } from "@expo/vector-icons";
 
-interface ModalProps {
+export interface PreFilledTransactionData {
+  amount: number | null;
+  note: string | null;
+  categoryId: string | null;
+  date?: string | null;
+}
+
+interface AddTransactionModalProps {
   visible: boolean;
   onClose: () => void;
+  initialData?: PreFilledTransactionData | null;
 }
 
-interface CategoryOption {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-}
-
-export const AddTransactionModal: React.FC<ModalProps> = ({
+export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   visible,
   onClose,
+  initialData,
 }) => {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [categoryId, setCategoryId] = useState("cat_1");
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const addTransaction = useTransactionStore((state) => state.addTransaction);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [date, setDate] = useState<string>(new Date().toISOString());
 
+  const { addTransaction } = useTransactionStore();
+
+  // Populate or reset form fields whenever modal visibility or initialData changes
   useEffect(() => {
     if (visible) {
-      // Fetch available categories from SQLite when modal opens
-      const rows = db.getAllSync<CategoryOption>(
-        "SELECT id, name, icon, color FROM categories WHERE type = 'expense';",
-      );
-      setCategories(rows);
-      if (rows.length > 0) {
-        setCategoryId(rows[0].id);
+      if (initialData) {
+        setAmount(initialData.amount ? initialData.amount.toString() : "");
+        setNote(initialData.note || "");
+        setSelectedCategory(initialData.categoryId || "");
+        setDate(initialData.date || new Date().toISOString());
+      } else {
+        // Reset form for manual entry
+        setAmount("");
+        setNote("");
+        setSelectedCategory("");
+        setDate(new Date().toISOString());
       }
     }
-  }, [visible]);
+  }, [visible, initialData]);
 
-  const handleSubmit = () => {
+  const handleSave = async () => {
     const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) return;
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      Alert.alert("Invalid Amount", "Please enter a valid expense amount.");
+      return;
+    }
 
-    addTransaction({
-      amount: numericAmount,
-      category_id: categoryId,
-      note: note || "Quick Expense",
-      date: new Date().toISOString(),
-    });
-
-    setAmount("");
-    setNote("");
-    onClose();
+    try {
+      await addTransaction({
+        amount: numericAmount,
+        category_id: selectedCategory,
+        note,
+        date,
+      });
+      onClose();
+    } catch (error) {
+      console.error("Failed to save transaction:", error);
+      Alert.alert("Error", "Could not save transaction.");
+    }
   };
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Add Expense</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.modalContent}>
+          <Text style={styles.title}>
+            {initialData ? "Verify Scanned Expense" : "Add Expense"}
+          </Text>
 
           <Text style={styles.label}>Amount ($)</Text>
           <TextInput
             style={styles.input}
-            keyboardType="decimal-pad"
+            keyboardType="numeric"
             placeholder="0.00"
             placeholderTextColor={Colors.textSecondary}
             value={amount}
             onChangeText={setAmount}
           />
 
-          <Text style={styles.label}>Category</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryPicker}
-          >
-            {categories.map((cat) => {
-              const isSelected = cat.id === categoryId;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[
-                    styles.categoryChip,
-                    isSelected && {
-                      borderColor: Colors.primary,
-                      backgroundColor: Colors.surfaceLight,
-                    },
-                  ]}
-                  onPress={() => setCategoryId(cat.id)}
-                >
-                  <Ionicons
-                    name={(cat.icon as any) || "pricetag"}
-                    size={16}
-                    color={isSelected ? Colors.primary : Colors.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.categoryChipText,
-                      isSelected && {
-                        color: Colors.primary,
-                        fontWeight: "bold",
-                      },
-                    ]}
-                  >
-                    {cat.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          <Text style={styles.label}>Note / Merchant</Text>
+          <Text style={styles.label}>Merchant / Note</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g., Target, Uber, Gas"
+            placeholder="e.g. Walmart, Starbucks"
             placeholderTextColor={Colors.textSecondary}
             value={note}
             onChangeText={setNote}
           />
 
-          <Button
-            title="Save Transaction"
-            onPress={handleSubmit}
-            style={{ marginTop: 16 }}
-          />
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+              <Text style={styles.saveBtnText}>Save Expense</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -151,44 +120,53 @@ export const AddTransactionModal: React.FC<ModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "flex-end",
   },
-  container: {
+  modalContent: {
     backgroundColor: Colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 20,
-    gap: 10,
+    padding: 24,
+    gap: 12,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  title: { fontSize: 20, fontWeight: "bold", color: Colors.textPrimary },
-  label: { color: Colors.textSecondary, fontSize: 13, marginTop: 4 },
-  input: {
-    backgroundColor: Colors.surfaceLight,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    height: 48,
+  title: {
+    fontSize: 20,
+    fontWeight: "bold",
     color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  label: { fontSize: 13, color: Colors.textSecondary },
+  input: {
+    backgroundColor: Colors.background,
+    color: Colors.textPrimary,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  categoryPicker: { flexDirection: "row", gap: 8, paddingVertical: 4 },
-  categoryChip: {
+  buttonRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    gap: 12,
+    marginTop: 16,
   },
-  categoryChipText: { color: Colors.textSecondary, fontSize: 13 },
+  cancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.surfaceLight,
+  },
+  cancelBtnText: { color: Colors.textPrimary, fontWeight: "600" },
+  saveBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.primary,
+  },
+  saveBtnText: { color: "#000000", fontWeight: "bold" },
 });

@@ -96,3 +96,20 @@ budgets — Tracks financial target limits (category_id, amount_limit, period).
 
 License
 Distributed under the MIT License. See LICENSE for more information.
+
+## Local Environment and Receipt OCR
+
+1. Copy `.env.example` to `.env` and set your Supabase project URL and anon key.
+   The `.env` file is ignored by Git.
+2. Link the Supabase CLI to your project, then set the Groq API key as a
+   server-side secret. Do not put this key in the mobile app or an
+   `EXPO_PUBLIC_` variable.
+   ```bash
+   supabase link --project-ref YOUR_PROJECT_ID
+   supabase secrets set GROQ_API_KEY=YOUR_GROQ_API_KEY
+   supabase functions deploy receipt-ocr
+   ```
+3. Sign in to the app before scanning a receipt. The Edge Function validates
+   the Supabase user token and calls Groq using the server-side secret.
+
+Revoke and replace any Groq API key that was previously committed or exposed.

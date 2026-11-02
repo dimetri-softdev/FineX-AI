@@ -4,8 +4,10 @@
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.20.0",
     "@react-navigation/native": "^7.5.0",
+    "@supabase/supabase-js": "^2.117.2",
     "expo": "~57.0.26",
     "expo-image-picker": "~57.0.20",
     "expo-sqlite": "~57.0.3",
@@ -14,6 +16,8 @@
     "react-native": "0.86.3",
     "react-native-safe-area-context": "^5.10.1",
     "react-native-screens": "^4.28.0",
+    "react-native-svg": "15.15.4",
+    "react-native-url-polyfill": "^4.0.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

@@ -1,10 +1,25 @@
 // src/store/useTransactionStore.ts
 import { create } from 'zustand';
 import { db } from '../db/schema';
+import { useAuthStore } from './useAuthStore';
+import { useSyncStore } from './useSyncStore';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
+
+export interface Category {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+  icon: string;
+  color: string;
+}
 
 export interface TransactionWithCategory {
   id: string;
+  user_id?: string;
   amount: number;
+  type: 'income' | 'expense';
+  title: string;
   category_id: string;
   category_name: string;
   category_icon: string;
@@ -14,6 +29,16 @@ export interface TransactionWithCategory {
   receipt_url?: string;
   sync_status: 'pending' | 'synced';
   updated_at: string;
+}
+
+export interface AddTransactionPayload {
+  title?: string;
+  amount: number;
+  type?: 'income' | 'expense';
+  category_id: string;
+  note?: string;
+  date: string;
+  receipt_url?: string;
 }
 
 export interface CategoryBudget {
@@ -35,26 +60,38 @@ export interface CategorySpendingBreakdown {
 }
 
 interface TransactionState {
+  categories: Category[];
   transactions: TransactionWithCategory[];
   budgets: CategoryBudget[];
   spendingBreakdown: CategorySpendingBreakdown[];
+  fetchCategories: () => void;
   fetchTransactions: () => void;
   fetchBudgets: () => void;
   fetchSpendingBreakdown: () => void;
-  addTransaction: (tx: { amount: number; category_id: string; note: string; date: string }) => void;
+  addTransaction: (tx: AddTransactionPayload) => void;
   deleteTransaction: (id: string) => void;
   setBudgetLimit: (categoryId: string, limit: number) => void;
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
+  categories: [],
   transactions: [],
   budgets: [],
   spendingBreakdown: [],
 
+  fetchCategories: () => {
+    const rows = db.getAllSync<Category>(`
+      SELECT id, name, type, icon, color 
+      FROM categories 
+      ORDER BY name ASC;
+    `);
+    set({ categories: rows });
+  },
+
   fetchTransactions: () => {
     const rows = db.getAllSync<TransactionWithCategory>(`
       SELECT 
-        t.id, t.amount, t.category_id, t.note, t.date, t.receipt_url, t.sync_status, t.updated_at,
+        t.id, t.user_id, t.amount, t.type, t.title, t.category_id, t.note, t.date, t.receipt_url, t.sync_status, t.updated_at,
         c.name as category_name, c.icon as category_icon, c.color as category_color
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
@@ -116,47 +153,78 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   },
 
   addTransaction: (txData) => {
-    const id = `tx_${Date.now()}`;
+    const user = useAuthStore.getState().user;
+    const id = uuidv4();
     const updated_at = new Date().toISOString();
+    const type = txData.type || 'expense';
+    const title = txData.title || 'Transaction';
 
     db.runSync(
-      `INSERT INTO transactions (id, amount, category_id, note, date, receipt_url, sync_status, updated_at)
-       VALUES (?, ?, ?, ?, ?, '', 'pending', ?);`,
-      [id, txData.amount, txData.category_id, txData.note, txData.date, updated_at]
+      `INSERT INTO transactions (id, user_id, amount, type, title, category_id, note, date, receipt_url, sync_status, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?);`,
+      [
+        id,
+        user?.id || null,
+        txData.amount,
+        type,
+        title,
+        txData.category_id,
+        txData.note || '',
+        txData.date,
+        txData.receipt_url || '',
+        updated_at,
+      ]
     );
 
-    // Refresh transactions, budgets, and breakdown data
+    // Immediate UI refresh & queue update
     get().fetchTransactions();
     get().fetchBudgets();
     get().fetchSpendingBreakdown();
+    useSyncStore.getState().getPendingCount();
+
+    // Trigger background sync attempt
+    useSyncStore.getState().syncData();
   },
 
   deleteTransaction: (id: string) => {
     db.runSync('DELETE FROM transactions WHERE id = ?;', [id]);
-    
-    // Refresh transactions, budgets, and breakdown data
+
+    // Immediate UI refresh & queue update
     get().fetchTransactions();
     get().fetchBudgets();
     get().fetchSpendingBreakdown();
+    useSyncStore.getState().getPendingCount();
+
+    // Trigger background sync attempt
+    useSyncStore.getState().syncData();
   },
 
   setBudgetLimit: (categoryId: string, limit: number) => {
+    const user = useAuthStore.getState().user;
+    const updated_at = new Date().toISOString();
+
     const existing = db.getFirstSync<{ id: string }>(
       'SELECT id FROM budgets WHERE category_id = ?;',
       [categoryId]
     );
 
     if (existing) {
-      db.runSync('UPDATE budgets SET amount_limit = ? WHERE category_id = ?;', [limit, categoryId]);
+      db.runSync(
+        'UPDATE budgets SET amount_limit = ?, sync_status = "pending", updated_at = ? WHERE category_id = ?;',
+        [limit, updated_at, categoryId]
+      );
     } else {
-      const id = `bgt_${Date.now()}`;
-      db.runSync('INSERT INTO budgets (id, category_id, amount_limit) VALUES (?, ?, ?);', [
-        id,
-        categoryId,
-        limit,
-      ]);
+      const id = uuidv4();
+      db.runSync(
+        'INSERT INTO budgets (id, user_id, category_id, amount_limit, sync_status, updated_at) VALUES (?, ?, ?, ?, "pending", ?);',
+        [id, user?.id || null, categoryId, limit, updated_at]
+      );
     }
 
     get().fetchBudgets();
+    useSyncStore.getState().getPendingCount();
+
+    // Trigger background sync attempt
+    useSyncStore.getState().syncData();
   },
 }));

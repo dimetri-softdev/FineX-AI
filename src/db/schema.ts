@@ -1,3 +1,4 @@
+// src/db/schema.ts
 import * as SQLite from 'expo-sqlite';
 
 // Initialize and export the SQLite database connection
@@ -17,8 +18,11 @@ export const initDatabase = () => {
 
     CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT,
       amount REAL NOT NULL,
-      category_id TEXT NOT NULL,
+      type TEXT CHECK(type IN ('expense', 'income')) NOT NULL DEFAULT 'expense',
+      title TEXT NOT NULL DEFAULT 'Transaction',
+      category_id TEXT,
       note TEXT,
       date TEXT NOT NULL,
       receipt_url TEXT,
@@ -29,13 +33,38 @@ export const initDatabase = () => {
 
     CREATE TABLE IF NOT EXISTS budgets (
       id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT,
       category_id TEXT NOT NULL,
       amount_limit REAL NOT NULL,
       period TEXT DEFAULT 'monthly',
+      sync_status TEXT CHECK(sync_status IN ('pending', 'synced')) DEFAULT 'pending',
+      updated_at TEXT,
       FOREIGN KEY (category_id) REFERENCES categories (id)
     );
   `);
+
+  // Run column migrations for existing databases
+  runMigrations();
   seedDefaultCategories();
+};
+
+const runMigrations = () => {
+  try {
+    const tableInfo = db.getAllSync<{ name: string }>('PRAGMA table_info(transactions);');
+    const columnNames = tableInfo.map((col) => col.name);
+
+    if (!columnNames.includes('user_id')) {
+      db.execSync('ALTER TABLE transactions ADD COLUMN user_id TEXT;');
+    }
+    if (!columnNames.includes('type')) {
+      db.execSync("ALTER TABLE transactions ADD COLUMN type TEXT CHECK(type IN ('expense', 'income')) NOT NULL DEFAULT 'expense';");
+    }
+    if (!columnNames.includes('title')) {
+      db.execSync("ALTER TABLE transactions ADD COLUMN title TEXT NOT NULL DEFAULT 'Transaction';");
+    }
+  } catch (error) {
+    console.error('Failed to run schema migrations:', error);
+  }
 };
 
 const seedDefaultCategories = () => {
